@@ -1,0 +1,9 @@
+[
+    {
+		"modid": "${modid}",
+        "name": "SeriousGen",
+	  	"version": "${version}",
+	  	"mcversion": "${mcversion}",
+        "description": "Minecraft Alpha/Beta compatible world generator"
+    }
+]

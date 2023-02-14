@@ -1,0 +1,115 @@
+buildscript {
+    repositories {
+        maven { url = 'https://files.minecraftforge.net/maven' };
+        mavenCentral();
+    }
+    dependencies {
+        classpath 'net.minecraftforge.gradle:ForgeGradle:3.+';
+    }
+}
+
+apply plugin: 'net.minecraftforge.gradle';
+apply plugin: 'maven-publish';
+apply plugin: 'eclipse';
+
+// Vars.
+version = project.minecraftVersion + "-" + 0;
+group = "io.github.dotBlueShoes";
+archivesBaseName = "nostalgia_gen";
+
+// Eclipse thing i believe.
+sourceCompatibility = targetCompatibility = JavaVersion.VERSION_1_8;
+compileJava { sourceCompatibility = targetCompatibility = JavaVersion.VERSION_1_8; }
+
+
+minecraft { // Setting up Minecraft run.
+    mappings channel: 'snapshot', version: '20171003-1.12';
+
+    runs {
+        client {
+            workingDirectory project.file('run');
+
+            property 'forge.logging.markers', 'SCAN,REGISTRIES,REGISTRYDUMP';
+            property 'forge.logging.console.level', 'debug';
+        }
+
+        server {
+            property 'forge.logging.markers', 'SCAN,REGISTRIES,REGISTRYDUMP';
+            property 'forge.logging.console.level', 'debug';
+        }
+    }
+
+}
+
+dependencies {
+    implementation 'org.jetbrains:annotations:20.1.0'
+    minecraft 'net.minecraftforge:forge:' + project.minecraftVersion + '-' + project.forgeVersion;
+    //compile 'com.github.dotBlueShoes:MS_PackedWool:v0.3.4';
+    //compile 'com.github.dotBlueShoes:MS_PackedWool:1.12.2-SNAPSHOT';
+    //compile files('libs/shears_lib-1.12.2-0.0.1.0.jar', "libs/Baubles-1.12-1.5.2.jar", 'libs/jei_1.12.2-4.16.1.302.jar'*/);
+    //compile "net.silentchaos512:silent-lib:3.0+";
+    //compile "libs/Baubles-1.12-1.5.2.jar";
+    //compile files("libs/shears_lib-" + project.shearsLibVersion + ".jar");
+    //compile files("libs/Baubles-1.12-1.5.2.jar");
+    //compile files("libs/BNBGamingLib-1.12.2-2.17.6.jar", "libs/BNBGamingCore-1.12.2-0.12.0.jar", "libs/Triumph-1.12.2-3.19.2.jar")
+}
+
+// This is required for mcmod.info to be loaded in first place and then reloaded with each build.
+sourceSets { main { output.resourcesDir = output.classesDir; } }
+
+processResources {
+    // This will ensure that it will change on build.
+    inputs.property 'mcversion', project.minecraftVersion;
+    inputs.property 'version', project.version;
+    inputs.property 'modid', project.archivesBaseName;
+
+    // This replaces mcmod.info variables.
+    from(sourceSets.main.resources.srcDirs) {
+        include '**/mcmod.info';
+
+        expand ([
+                'mcversion': project.minecraftVersion,
+                'version': project.version,
+                'modid': project.archivesBaseName
+        ]);
+    }
+
+    // Means copy everything else except the mcmod.info file.
+    from(sourceSets.main.resources.srcDirs) {
+        exclude '**/mcmod.info';
+    }
+
+}
+
+jar { // Manifest File. It's optional. But still it shows in the .jar file so let the values be.
+    manifest {
+        attributes([
+                "Specification-Title": project.archivesBaseName,
+                "Specification-Vendor": "dotBlueShoes",
+                "Specification-Version": "1",
+                "Implementation-Title": project.name,
+                "Implementation-Version": project.version,
+                "Implementation-Vendor" :"dotBluesShoes",
+                "Implementation-Timestamp": new Date().format("yyyy-MM-dd'T'HH:mm:ssZ")
+        ]);
+    }
+}
+
+// Example configuration to allow publishing using the maven-publish task
+// This is the preferred method to reobfuscate your jar file
+jar.finalizedBy('reobfJar') 
+// However if you are in a multi-project build, dev time needs unobfed jar files, so you can delay the obfuscation until publishing by doing
+//publish.dependsOn('reobfJar')
+
+publishing {
+    publications {
+        mavenJava(MavenPublication) {
+            artifact jar
+        }
+    }
+    repositories {
+        maven {
+            url "file:///${project.projectDir}/mcmodsrepo"
+        }
+    }
+}
