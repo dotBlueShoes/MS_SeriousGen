@@ -84,7 +84,13 @@ public class NoiseGeneratorPerlin extends NoiseGenerator {
       return this.generateNoise(var1, var3, 0.0);
    }
 
-   public void func_805_a(double[] var1, double var2, double var4, double var6, int var8, int var9, int var10, double var11, double var13, double var15, double var17) {
+   public void func_805_a(
+	   double[] array,
+	   double var2, double var4, double var6,
+	   int var8, int var9, int var10,
+	   double var11, double var13,
+	   double var15, double var17
+   ) {
       int var19 = 0;
       double var20 = 1.0 / var17;
       int var22 = -1;
@@ -149,7 +155,7 @@ public class NoiseGeneratorPerlin extends NoiseGenerator {
                double var60 = this.lerp(var56, var33, var35);
                double var62 = this.lerp(var49, var58, var60);
                int var10001 = var19++;
-               var1[var10001] += var62 * var20;
+               array[var10001] += var62 * var20;
             }
          }
       }

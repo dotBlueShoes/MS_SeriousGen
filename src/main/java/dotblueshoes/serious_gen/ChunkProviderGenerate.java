@@ -9,7 +9,7 @@ import net.minecraft.world.biome.Biome;
 import net.minecraft.world.chunk.Chunk;
 import net.minecraft.world.chunk.ChunkPrimer;
 import net.minecraft.world.gen.IChunkGenerator;
-import net.minecrell.nostalgia_gen.a1_1_2_01.NoiseGeneratorOctaves;
+//import net.minecrell.nostalgia_gen.a1_1_2_01.NoiseGeneratorOctaves;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -17,15 +17,16 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Random;
 
-import static dotblueshoes.serious_gen.SeriousGenMod.logger;
-
 public class ChunkProviderGenerate implements IChunkGenerator {
 
 	private final World world;
 	private final Random randomNumberGenerator;
 
-	final int idk1 = 5, idk2 = 5, idk3 = 17;
-	private final double[] heightMap = new double[idk1 * idk2 * idk3]; // = new double[256];
+	final int
+		xLength = 5, zLength = 5, yLength = 17,
+		xzLength = xLength * zLength,
+		xyzLength = xLength * yLength * zLength;
+	private final double[] heightMap = new double[xLength * zLength * yLength]; // = new double[256];
 
 	final private NoiseGeneratorOctaves
 		minLimitPerlinNoise,
@@ -36,12 +37,12 @@ public class ChunkProviderGenerate implements IChunkGenerator {
 		unknownNoise,
 		depthNoise;
 
-	private double[]
-		aaa,
-		bbb,
-		ccc,
-		ddd,
-		eee;
+	private final double[]
+		aaa = new double[xzLength],
+		bbb = new double[xzLength],
+		ccc = new double[xyzLength],
+		ddd = new double[xyzLength],
+		eee = new double[xyzLength];
 
 	public ChunkProviderGenerate(final World world, final long seed) {
 		this.world                      = world;
@@ -89,6 +90,7 @@ public class ChunkProviderGenerate implements IChunkGenerator {
 
 		// Entire chunk is 16 x 256 x 16 = 256 * 256 = 65536
 
+		// get noise values for the whole chunk
 		this.generateHeightMap(chunkX, chunkZ);
 		//logger.info("Hello There!");
 
@@ -97,10 +99,10 @@ public class ChunkProviderGenerate implements IChunkGenerator {
 				for (int height = 0; height < 16; ++height) {
 					double var12 = 0.125;
 
-					final int i1 = (x4 * idk1 + z4) * idk3;
-					final int i2 = (x4 * idk1 + z4 + 1) * idk3;
-					final int i3 = ((x4 + 1) * idk1 + z4) * idk3;
-					final int i4 = ((x4 + 1) * idk1 + z4 + 1) * idk3;
+					final int i1 = (x4 * xLength + z4) * yLength;
+					final int i2 = (x4 * xLength + z4 + 1) * yLength;
+					final int i3 = ((x4 + 1) * xLength + z4) * yLength;
+					final int i4 = ((x4 + 1) * xLength + z4 + 1) * yLength;
 
 					double var14 = this.heightMap[i1 + height];
 					double var16 = this.heightMap[i2 + height];
@@ -138,7 +140,7 @@ public class ChunkProviderGenerate implements IChunkGenerator {
 								}
 
 								if (block != null) {
-									chunkPrimer.setBlockState(x, y, z, ((Block)block).getDefaultState());
+									chunkPrimer.setBlockState(x, y, z, block.getDefaultState());
 								}
 
 								++z;
@@ -163,20 +165,31 @@ public class ChunkProviderGenerate implements IChunkGenerator {
 
 	private void generateHeightMap(final int chunkX, final int chunkZ) {
 
-		final double chunkXMultiplied = chunkX * 4;
-		final double chunkZMultiplied = chunkZ * 4;
+		final int subChunkX = chunkX * 4;
+		final int subChunkY = 0;
+		final int subChunkZ = chunkZ * 4;
 
-		final double var8 = 684.412;
-		final double var10 = 684.412;
+		Arrays.fill(this.aaa, 0.0);
+		Arrays.fill(this.bbb, 0.0);
+		Arrays.fill(this.ccc, 0.0);
+		Arrays.fill(this.ddd, 0.0);
+		Arrays.fill(this.eee, 0.0);
 
-		final double wtf = 0.0;
+		// TO BE CONTINUED
+		// https://github.com/Glitchfiend/BiomesOPlenty/blob/5ad77116382bec782a023926b8dab17a6ea5599d/src/main/java/biomesoplenty/common/world/ChunkGeneratorOverworldBOP.java#L389
+		// https://github.com/Glitchfiend/BiomesOPlenty/blob/5ad77116382bec782a023926b8dab17a6ea5599d/src/main/java/biomesoplenty/common/world/NoiseGeneratorOctavesBOP.java#L42
+		// https://github.com/Glitchfiend/BiomesOPlenty/blob/5ad77116382bec782a023926b8dab17a6ea5599d/src/main/java/biomesoplenty/common/world/NoiseGeneratorBOP.java#L91
 
-		// Their size is quite random from what i can tell.
-		this.aaa = this.unknownNoise.generateNoiseOctaves        (this.aaa, chunkXMultiplied, 0, chunkZMultiplied, idk1, 1, idk2, 1.0, 0.0, 1.0);
-		this.bbb = this.depthNoise.generateNoiseOctaves          (this.bbb, chunkXMultiplied, 0, chunkZMultiplied, idk1, 1, idk2, 100.0, 0.0, 100.0);
-		this.ccc = this.mainPerlinNoise.generateNoiseOctaves     (this.ccc, chunkXMultiplied, 0, chunkZMultiplied, idk1, idk3, idk2, var8 / 80.0, var10 / 160.0, var8 / 80.0);
-		this.ddd = this.minLimitPerlinNoise.generateNoiseOctaves (this.ddd, chunkXMultiplied, 0, chunkZMultiplied, idk1, idk3, idk2, var8, var10, var8);
-		this.eee = this.maxLimitPerlinNoise.generateNoiseOctaves (this.eee, chunkXMultiplied, 0, chunkZMultiplied, idk1, idk3, idk2, var8, var10, var8);
+		// Their size is quite random from what I can tell.
+
+		// xz noise
+		this.unknownNoise.generateNoiseOctavesXZ         (this.aaa, subChunkX, subChunkZ, xLength, zLength, 1.0,  1.0);
+		this.depthNoise.generateNoiseOctavesXZ           (this.bbb, subChunkX, subChunkZ, xLength, zLength, 100.0, 100.0);
+
+		// xyz noise
+		this.mainPerlinNoise.generateNoiseOctavesXYZ     (this.ccc, subChunkX, subChunkY, subChunkZ, xLength, yLength, zLength, 684.412 / 80.0, 684.412 / 160.0, 684.412 / 80.0);
+		this.minLimitPerlinNoise.generateNoiseOctavesXYZ (this.ddd, subChunkX, subChunkY, subChunkZ, xLength, yLength, zLength, 684.412, 684.412, 684.412);
+		this.maxLimitPerlinNoise.generateNoiseOctavesXYZ (this.eee, subChunkX, subChunkY, subChunkZ, xLength, yLength, zLength, 684.412, 684.412, 684.412);
 
 		//logger.info (
 		//	"call" + "\n" +
@@ -190,15 +203,17 @@ public class ChunkProviderGenerate implements IChunkGenerator {
 		int mainIndex = 0;
 		int index = 0;
 
-		for (int x = 0; x < idk1; ++x) {
-			for (int y = 0; y < idk2; ++y) {
+		for (int x = 0; x < xLength; ++x) {
+			for (int z = 0; z < zLength; ++z) {
 
 				double valueA = (this.aaa[index] + 256.0) / 512.0;
-				if (valueA > 1.0) valueA = 1.0;
-
 				double valueB = this.bbb[index] / 8000.0;
+
+				if (valueA > 1.0) valueA = 1.0;
 				if (valueB < 0.0) valueB = -valueB;
+
 				valueB = valueB * 3.0 - 3.0;
+
 				if (valueB < 0.0) {
 					valueB /= 2.0;
 					if (valueB < -1.0) valueB = -1.0;
@@ -211,44 +226,39 @@ public class ChunkProviderGenerate implements IChunkGenerator {
 				}
 
 				valueA += 0.5;
-				valueB = valueB * (double)idk3 / 16.0;
-				double var22 = (double)idk3 / 2.0 + valueB * 4.0;
+				valueB = valueB * (double) yLength / 16.0;
+				double var22 = (double) yLength / 2.0 + valueB * 4.0;
 				++index;
 
-				for (int i = 0; i < idk3; ++i) {
+				for (int i = 0; i < yLength; ++i) {
 
-					double result = 0.0;
+					double result;
 					double var27 = ((double)i - var22) * 12.0 / valueA;
 
-					if (var27 < 0.0) {
-						var27 *= 4.0;
-					}
+					if (var27 < 0.0) var27 *= 4.0;
 
 					double valueC = (this.ccc[mainIndex] / 10.0 + 1.0) / 2.0;
 					double valueD = this.ddd[mainIndex] / 512.0;
 					double valueE = this.eee[mainIndex] / 512.0;
-
 
 					if (valueC < 0.0) result = valueD;
 					else if (valueC > 1.0) result = valueE;
 					else result = valueD + (valueE - valueD) * valueC;
 
 					result -= var27;
-					double var45;
 
-					if (i > idk3 - 4) {
-						var45 = (double)((float)(i - (idk3 - 4)) / 3.0F);
+					if (i > yLength - 4) {
+						double var45 = (double)((float)(i - (yLength - 4)) / 3.0F);
 						result = result * (1.0 - var45) + -10.0 * var45;
 					}
 
-					if ((double)i < wtf) {
-						var45 = (wtf - (double)i) / 4.0;
-						if (var45 < 0.0) {
-							var45 = 0.0;
-						}
-						if (var45 > 1.0) {
-							var45 = 1.0;
-						}
+					if ((double)i < 0.0) {
+						double var45 = (0.0 - (double)i) / 4.0;
+
+						if (var45 < 0.0) var45 = 0.0;
+
+						if (var45 > 1.0) var45 = 1.0;
+
 						result = result * (1.0 - var45) + -10.0 * var45;
 					}
 
