@@ -23,7 +23,7 @@ public class ChunkProviderGenerate implements IChunkGenerator {
 	private final Random randomNumberGenerator;
 
 	final int
-		xLength = 5, zLength = 5, yLength = 17,
+		xLength = 5, zLength = 5, yLength = 17, // for some reason cannot be lower than 17.
 		xzLength = xLength * zLength,
 		xyzLength = xLength * yLength * zLength;
 	private final double[] heightMap = new double[xLength * zLength * yLength]; // = new double[256];
@@ -131,9 +131,10 @@ public class ChunkProviderGenerate implements IChunkGenerator {
 							for (int var50 = 0; var50 < 4; ++var50) {
 								Block block = null;
 
-								if (height * 8 + var30 < seaLevel) {
-									block = Blocks.WATER;
-								}
+								// PLACE WATER
+								//if (height * 8 + var30 < seaLevel) {
+								//	block = Blocks.WATER;
+								//}
 
 								if (var46 > 0.0) {
 									block = Blocks.STONE;
@@ -180,8 +181,6 @@ public class ChunkProviderGenerate implements IChunkGenerator {
 		// https://github.com/Glitchfiend/BiomesOPlenty/blob/5ad77116382bec782a023926b8dab17a6ea5599d/src/main/java/biomesoplenty/common/world/NoiseGeneratorOctavesBOP.java#L42
 		// https://github.com/Glitchfiend/BiomesOPlenty/blob/5ad77116382bec782a023926b8dab17a6ea5599d/src/main/java/biomesoplenty/common/world/NoiseGeneratorBOP.java#L91
 
-		// Their size is quite random from what I can tell.
-
 		// xz noise
 		this.unknownNoise.generateNoiseOctavesXZ         (this.aaa, subChunkX, subChunkZ, xLength, zLength, 1.0,  1.0);
 		this.depthNoise.generateNoiseOctavesXZ           (this.bbb, subChunkX, subChunkZ, xLength, zLength, 100.0, 100.0);
@@ -227,44 +226,69 @@ public class ChunkProviderGenerate implements IChunkGenerator {
 
 				valueA += 0.5;
 				valueB = valueB * (double) yLength / 16.0;
+
 				double var22 = (double) yLength / 2.0 + valueB * 4.0;
+				SeriousGenMod.logger.info(var22);
+
+				// ... not sure how dents are being created.
+				// how noise is being represented in y-axis
+				// does heightMap hold information about y-axis?
+
+				//2 final double example_i = 0.0; // it appears that values [1-16] leave world empty ?
+				//2 double var27 = (example_i - var22) * 12.0 / valueA; // in general negative numbers.
+				//2 for (int i = 0; i < yLength; ++i) {
+				//2 	this.heightMap[mainIndex] -= var27;
+				//2 	++mainIndex;
+				//2 }
+
+				// UNCOMMENT ME !
+				//SeriousGenMod.logger.info("loop");
+				//1 for (int i = 0; i < yLength; ++i) { // 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16
+				//1
+				//1 	double result = 0;
+				//1 	double var27 = ((double)0 - var22) * 12.0 / valueA; // in general negative numbers.
+				//1 	final double flatness = 4.0f;
+				//1
+				//1 	//SeriousGenMod.logger.info("value: " + var27);
+				//1
+				//1 	// It means higher low grounds.
+				//1 	//  high grounds stay unaffected.
+				//1 	//  everything that would generate below somewhere around ~[8.0 - -64.0]
+				//1 	//  will be raised.
+				//1 	if (var27 < 0.0) var27 *= flatness;
+				//1
+				//1 	// Those add the 3rd noise effect.
+				//1 	//  all the grumpiness, gigantic and smaller hills, depths.
+				//1 	double valueC = (this.ccc[mainIndex] / 10.0 + 1.0) / 2.0; // in range of ~[-10.00 - 10.00]
+				//1 	double min = this.ddd[mainIndex] / 512.0; // in range of ~[-64.00 - 64.00]
+				//1 	double max = this.eee[mainIndex] / 512.0; // in range of ~[-64.00 - 64.00]
+				//1
+				//1 	//SeriousGenMod.logger.info("min: " + min + ", max: " + max + ", value: " + valueC);
+				//1
+				//1 	if (valueC < 0.0) result = min;
+				//1 	else if (valueC > 1.0) result = max;
+				//1 	else result = min + (max - min) * valueC;
+				//1
+				//1 	result -= var27;
+				//1
+				//1 	// No idea, but works without.
+				//1 	//if (i > yLength - 4) {
+				//1 	//	double var45 = (double)((float)(i - (yLength - 4)) / 3.0F);
+				//1 	//	result = result * (1.0 - var45) + -10.0 * var45;
+				//1 	//}
+				//1
+				//1 	//if ((double)i < 0.0) {
+				//1 	//	SeriousGenMod.logger.info("what-here");
+				//1 	//	double var45 = (0.0 - (double)i) / 4.0;
+				//1 	//	if (var45 < 0.0) var45 = 0.0;
+				//1 	//	if (var45 > 1.0) var45 = 1.0;
+				//1 	//	result = result * (1.0 - var45) + -10.0 * var45;
+				//1 	//}
+				//1
+				//1 	this.heightMap[mainIndex] = result;
+				//1 	++mainIndex;
+				//1 }
 				++index;
-
-				for (int i = 0; i < yLength; ++i) {
-
-					double result;
-					double var27 = ((double)i - var22) * 12.0 / valueA;
-
-					if (var27 < 0.0) var27 *= 4.0;
-
-					double valueC = (this.ccc[mainIndex] / 10.0 + 1.0) / 2.0;
-					double valueD = this.ddd[mainIndex] / 512.0;
-					double valueE = this.eee[mainIndex] / 512.0;
-
-					if (valueC < 0.0) result = valueD;
-					else if (valueC > 1.0) result = valueE;
-					else result = valueD + (valueE - valueD) * valueC;
-
-					result -= var27;
-
-					if (i > yLength - 4) {
-						double var45 = (double)((float)(i - (yLength - 4)) / 3.0F);
-						result = result * (1.0 - var45) + -10.0 * var45;
-					}
-
-					if ((double)i < 0.0) {
-						double var45 = (0.0 - (double)i) / 4.0;
-
-						if (var45 < 0.0) var45 = 0.0;
-
-						if (var45 > 1.0) var45 = 1.0;
-
-						result = result * (1.0 - var45) + -10.0 * var45;
-					}
-
-					this.heightMap[mainIndex] = result;
-					++mainIndex;
-				}
 			}
 		}
 	}
