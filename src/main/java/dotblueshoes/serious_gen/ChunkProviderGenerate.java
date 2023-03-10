@@ -23,7 +23,7 @@ public class ChunkProviderGenerate implements IChunkGenerator {
 	private final World world;
 	private final Random randomNumberGenerator;
 
-	private final byte[] blockBiomes = new byte[256]; // idk
+	private final byte[] blockBiomes = new byte[16 * 16]; // x-z per chunk biome assignment.
 	private static final byte STANDARD_BIOME = (byte)Biome.getIdForBiome(Biomes.JUNGLE);
 	private static final byte BEACH_BIOME = (byte)Biome.getIdForBiome(Biomes.BEACH);
 	private static final byte OCEAN_BIOME = (byte)Biome.getIdForBiome(Biomes.OCEAN);
@@ -80,10 +80,11 @@ public class ChunkProviderGenerate implements IChunkGenerator {
 		// No idea.
 		ChunkPrimer chunkPrimer = new ChunkPrimer();
 
-		//logger.info(world.getSeed());
-		randomNumberGenerator.setSeed(x * 341873128712L + z * 132897987541L);   // No idea... does it do anything ???
-		generateTerrain(x, z, chunkPrimer);                                     // Generates stone-block noise filled with water up to water-level.
-		replaceBlocks(x, z, chunkPrimer);                                       // Replaces generated stone with other blocks. - biomes !
+		//if (x == 0 && z == 0) {
+			randomNumberGenerator.setSeed(x * 341873128712L + z * 132897987541L);   // No idea... does it do anything ???
+			generateTerrain(x, z, chunkPrimer);                                     // Generates stone-block noise filled with water up to water-level.
+			replaceBlocks(x, z, chunkPrimer);                                       // Replaces generated stone with other blocks. - biomes !
+		//}
 
 		Chunk chunk = new Chunk(this.world, chunkPrimer, x, z);
 		System.arraycopy(this.blockBiomes, 0, chunk.getBiomeArray(), 0, this.blockBiomes.length); // Biome assigning.
@@ -96,8 +97,24 @@ public class ChunkProviderGenerate implements IChunkGenerator {
 		return Blocks.WATER;
 	}
 
+	// Because terrain is being generated from bottom to top.
+	//  I could have an array per chunk topBlocks[16*16]
+	//  that I guess could also have depth maybe like 2-3. it depends.
+	//  whenever we generate a stone block in a said y range we would say
+	//  that at the following x and z the top block is at current y
+	//  then with each new block on y we overwrite it.
+	//  it stops when we don't generate e.g. generate air block.
+	// It has depth because there could be air pockets between
+	//  we would simply check if the previous was a stone or air block
+	//  and depending on that we would move in depth.
+	// ->
+	// having that list we could either generate biomes in replaceBlocks() method
+	//  or even generate here I guess...
+
 	private void generateTerrain(final int chunkX, final int chunkZ, final ChunkPrimer chunkPrimer) {
 
+		final double oneEighth = 0.125;
+		final double oneFourth = 0.25;
 		final int seaLevel = 64;
 
 		//byte baseLevel = 64, times = 4;
@@ -112,68 +129,87 @@ public class ChunkProviderGenerate implements IChunkGenerator {
 		this.generateHeightMap(chunkX, chunkZ);
 		//logger.info("Hello There!");
 
-		for (int x4 = 0; x4 < 4; ++x4) {
-			for (int z4 = 0; z4 < 4; ++z4) {
-				for (int height = 0; height < 16; ++height) {
-					double var12 = 0.125;
+		for (int x4 = 0; x4 < 4; ++x4) {                // Divide chunk into 4 subChunks in x direction, index as x4
+			for (int z4 = 0; z4 < 4; ++z4) {            // Divide chunk into 4 subChunks in y direction, index as z4
 
-					final int i1 = (x4 * xLength + z4) * yLength;
-					final int i2 = (x4 * xLength + z4 + 1) * yLength;
-					final int i3 = ((x4 + 1) * xLength + z4) * yLength;
-					final int i4 = ((x4 + 1) * xLength + z4 + 1) * yLength;
+				final int k_x0z0 = (x4 * xLength + z4) * yLength;
+				final int k_x0z1 = (x4 * xLength + z4 + 1) * yLength;
+				final int k_x1z0 = ((x4 + 1) * xLength + z4) * yLength;
+				final int k_x1z1 = ((x4 + 1) * xLength + z4 + 1) * yLength;
 
-					double var14 = this.heightMap[i1 + height];
-					double var16 = this.heightMap[i2 + height];
-					double var18 = this.heightMap[i3 + height];
-					double var20 = this.heightMap[i4 + height];
-					double var22 = (this.heightMap[i1 + height + 1] - var14) * var12;
-					double var24 = (this.heightMap[i2 + height + 1] - var16) * var12;
-					double var26 = (this.heightMap[i3 + height + 1] - var18) * var12;
-					double var28 = (this.heightMap[i4 + height + 1] - var20) * var12;
+				for (int y16 = 0; y16 < 16; ++y16) {    // Divide chunk into 32 subChunks in y direction, index as y16
 
-					for (int var30 = 0; var30 < 8; ++var30) {
-						double var31 = 0.25;
-						double var33 = var14;
-						double var35 = var16;
-						double var37 = (var18 - var14) * var31;
-						double var39 = (var20 - var16) * var31;
+					final double n_x0y0z0 = this.heightMap[k_x0z0 + y16];
+					final double n_x0y0z1 = this.heightMap[k_x0z1 + y16];
+					final double n_x1y0z0 = this.heightMap[k_x1z0 + y16];
+					final double n_x1y0z1 = this.heightMap[k_x1z1 + y16];
+					final double n_x0y1z0 = (this.heightMap[k_x0z0 + y16 + 1] - n_x0y0z0) * oneEighth;
+					final double n_x0y1z1 = (this.heightMap[k_x0z1 + y16 + 1] - n_x0y0z1) * oneEighth;
+					final double n_x1y1z0 = (this.heightMap[k_x1z0 + y16 + 1] - n_x1y0z0) * oneEighth;
+					final double n_x1y1z1 = (this.heightMap[k_x1z1 + y16 + 1] - n_x1y0z1) * oneEighth;
 
-						for (int var41 = 0; var41 < 4; ++var41) {
-							int x = var41 + x4 * 4;
-							int y = height * 8 + var30;
-							int z = z4 * 4;
-							double var44 = 0.25;
-							double var46 = var33;
-							double var48 = (var35 - var33) * var44;
+					double noiseStartX0 = n_x0y0z0;
+					double noiseStartX1 = n_x0y0z1;
+					double noiseEndX0 = n_x1y0z0;
+					double noiseEndX1 = n_x1y0z1;
 
-							for (int var50 = 0; var50 < 4; ++var50) {
-								Block block = null;
+					// SubChunk is 8 blocks high in y direction, index as iy
+					for (int iy = 0; iy < 8; ++iy) {
+
+						double noiseStartZ = noiseStartX0;
+						double noiseEndZ = noiseStartX1;
+						double noiseStepX0 = (noiseEndX0 - noiseStartX0) * oneFourth;
+						double noiseStepX1 = (noiseEndX1 - noiseStartX1) * oneFourth;
+
+						// SubChunk is 4 blocks long in x direction, index as ix
+						for (int ix = 0; ix < 4; ++ix) {
+
+							final int x = ix + x4 * 4;    // (0-15)
+							final int y = y16 * 8 + iy;   // (0-127)
+							int z = z4 * 4;         // (0-15
+
+							double noiseStepZ = (noiseEndZ - noiseStartZ) * oneFourth;
+							double noiseVal = noiseStartZ;
+
+							// SubChunk is 4 blocks long in x direction, index as iz
+							for (int iz = 0; iz < 4; ++iz) {
+								Block block;
+
+								//SeriousGenMod.logger.info("x: " + x + ", y: " + y + ", z: " + z);
 
 								// PLACE WATER
-								if (height * 8 + var30 < seaLevel) {
-									block = generateWater();
-								}
+								//if (y16 * 8 + iy < seaLevel) {
+								//	block = generateWater();
+								//	chunkPrimer.setBlockState(x, y, z, block.getDefaultState());
+								//	SeriousGenMod.logger.info("noiseVal: " + noiseVal);
+								//}
 
-								if (var46 > 0.0) {
+								if (noiseVal > 0.0) {
 									block = Blocks.STONE;
+									chunkPrimer.setBlockState(x, y, z, block.getDefaultState());
+									//SeriousGenMod.logger.info("noiseVal: " + noiseVal);
+								} else if (y16 * 8 + iy < seaLevel) {
+									block = generateWater();
+									chunkPrimer.setBlockState(x, y, z, block.getDefaultState());
+									//SeriousGenMod.logger.info("noiseVal: " + noiseVal);
 								}
 
-								if (block != null) {
-									chunkPrimer.setBlockState(x, y, z, block.getDefaultState());
-								}
+								//if (block != null) {
+								//	chunkPrimer.setBlockState(x, y, z, block.getDefaultState());
+								//}
 
 								++z;
-								var46 += var48;
+								noiseVal += noiseStepZ;
 							}
 
-							var33 += var37;
-							var35 += var39;
+							noiseStartZ += noiseStepX0;
+							noiseEndZ += noiseStepX1;
 						}
 
-						var14 += var22;
-						var16 += var24;
-						var18 += var26;
-						var20 += var28;
+						noiseStartX0 += n_x0y1z0;
+						noiseStartX1 += n_x0y1z1;
+						noiseEndX0 += n_x1y1z0;
+						noiseEndX1 += n_x1y1z1;
 					}
 				}
 			}
