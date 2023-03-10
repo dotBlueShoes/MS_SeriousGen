@@ -2,6 +2,7 @@ package dotblueshoes.serious_gen;
 
 import net.minecraft.block.Block;
 import net.minecraft.entity.EnumCreatureType;
+import net.minecraft.init.Biomes;
 import net.minecraft.init.Blocks;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
@@ -22,6 +23,11 @@ public class ChunkProviderGenerate implements IChunkGenerator {
 	private final World world;
 	private final Random randomNumberGenerator;
 
+	private final byte[] blockBiomes = new byte[256]; // idk
+	private static final byte STANDARD_BIOME = (byte)Biome.getIdForBiome(Biomes.JUNGLE);
+	private static final byte BEACH_BIOME = (byte)Biome.getIdForBiome(Biomes.BEACH);
+	private static final byte OCEAN_BIOME = (byte)Biome.getIdForBiome(Biomes.OCEAN);
+
 	final int
 		xLength = 5, zLength = 5, yLength = 17, // for some reason cannot be lower than 17.
 		xzLength = xLength * zLength,
@@ -32,8 +38,6 @@ public class ChunkProviderGenerate implements IChunkGenerator {
 		minLimitPerlinNoise,
 		maxLimitPerlinNoise,
 		mainPerlinNoise,
-		//surfaceNoise,
-		//stonePatchesNoise,
 		unknownNoise,
 		depthNoise;
 
@@ -44,14 +48,21 @@ public class ChunkProviderGenerate implements IChunkGenerator {
 		ddd = new double[xyzLength],
 		eee = new double[xyzLength];
 
+	NoiseGeneratorOctaves surfaceNoise, stonePatchesNoise;
+
+	double[]
+		gravelNoise = new double[16 * 16],
+		stoneNoise = new double[16 * 16],
+		sandNoise  = new double[16 * 16];
+
 	public ChunkProviderGenerate(final World world, final long seed) {
 		this.world                      = world;
 		this.randomNumberGenerator      = new Random(seed);
 		this.minLimitPerlinNoise        = new NoiseGeneratorOctaves(this.randomNumberGenerator, 16);
 		this.maxLimitPerlinNoise        = new NoiseGeneratorOctaves(this.randomNumberGenerator, 16);
 		this.mainPerlinNoise            = new NoiseGeneratorOctaves(this.randomNumberGenerator, 8);
-		//this.surfaceNoise               = new NoiseGeneratorOctaves(this.randomNumberGenerator, 4);
-		//this.stonePatchesNoise          = new NoiseGeneratorOctaves(this.randomNumberGenerator, 4);
+		this.surfaceNoise               = new NoiseGeneratorOctaves(this.randomNumberGenerator, 4);
+		this.stonePatchesNoise          = new NoiseGeneratorOctaves(this.randomNumberGenerator, 4);
 		this.unknownNoise               = new NoiseGeneratorOctaves(this.randomNumberGenerator, 10);
 		this.depthNoise                 = new NoiseGeneratorOctaves(this.randomNumberGenerator, 16);
 		//this.mobSpawnerNoise = new NoiseGeneratorOctaves(this.rand, 8);
@@ -70,14 +81,19 @@ public class ChunkProviderGenerate implements IChunkGenerator {
 		ChunkPrimer chunkPrimer = new ChunkPrimer();
 
 		//logger.info(world.getSeed());
-		this.randomNumberGenerator.setSeed(x * 341873128712L + z * 132897987541L);
-		this.generateTerrain(x, z, chunkPrimer);
+		randomNumberGenerator.setSeed(x * 341873128712L + z * 132897987541L);   // No idea... does it do anything ???
+		generateTerrain(x, z, chunkPrimer);                                     // Generates stone-block noise filled with water up to water-level.
+		replaceBlocks(x, z, chunkPrimer);                                       // Replaces generated stone with other blocks. - biomes !
 
 		Chunk chunk = new Chunk(this.world, chunkPrimer, x, z);
-		//System.arraycopy(this.blockBiomes, 0, chunk.getBiomeArray(), 0, this.blockBiomes.length);
+		System.arraycopy(this.blockBiomes, 0, chunk.getBiomeArray(), 0, this.blockBiomes.length); // Biome assigning.
 		chunk.generateSkylightMap();
 
 		return chunk;
+	}
+
+	private Block generateWater() {
+		return Blocks.WATER;
 	}
 
 	private void generateTerrain(final int chunkX, final int chunkZ, final ChunkPrimer chunkPrimer) {
@@ -87,6 +103,8 @@ public class ChunkProviderGenerate implements IChunkGenerator {
 		//byte baseLevel = 64, times = 4;
 		//final int var6 = times + 1;
 		//final byte var7 = 17;
+
+		//SeriousGenMod.logger.info("Chunk: " + chunkX + ", " + chunkZ);
 
 		// Entire chunk is 16 x 256 x 16 = 256 * 256 = 65536
 
@@ -132,9 +150,9 @@ public class ChunkProviderGenerate implements IChunkGenerator {
 								Block block = null;
 
 								// PLACE WATER
-								//if (height * 8 + var30 < seaLevel) {
-								//	block = Blocks.WATER;
-								//}
+								if (height * 8 + var30 < seaLevel) {
+									block = generateWater();
+								}
 
 								if (var46 > 0.0) {
 									block = Blocks.STONE;
@@ -170,6 +188,7 @@ public class ChunkProviderGenerate implements IChunkGenerator {
 		final int subChunkY = 0;
 		final int subChunkZ = chunkZ * 4;
 
+		// Threes no assignments only arithmetic ops so we need to preinitialize it each call.
 		Arrays.fill(this.aaa, 0.0);
 		Arrays.fill(this.bbb, 0.0);
 		Arrays.fill(this.ccc, 0.0);
@@ -225,72 +244,233 @@ public class ChunkProviderGenerate implements IChunkGenerator {
 				}
 
 				valueA += 0.5;
-				valueB = valueB * (double) yLength / 16.0;
-
+				//valueB = valueB * (double) yLength / 16.0; // = 1
 				double var22 = (double) yLength / 2.0 + valueB * 4.0;
-				SeriousGenMod.logger.info(var22);
+				//SeriousGenMod.logger.info(var22);
 
 				// ... not sure how dents are being created.
 				// how noise is being represented in y-axis
 				// does heightMap hold information about y-axis?
 
-				//2 final double example_i = 0.0; // it appears that values [1-16] leave world empty ?
-				//2 double var27 = (example_i - var22) * 12.0 / valueA; // in general negative numbers.
-				//2 for (int i = 0; i < yLength; ++i) {
-				//2 	this.heightMap[mainIndex] -= var27;
-				//2 	++mainIndex;
-				//2 }
+				//final double example_i = 0.0; // it appears that values [1-16] leave world empty ?
+				//double var27 = (example_i - var22) * 12.0 / valueA; // in general negative numbers.
+				//for (int i = 0; i < yLength; ++i) {
+				//	this.heightMap[mainIndex] -= var27;
+				//	++mainIndex;
+				//}
 
 				// UNCOMMENT ME !
 				//SeriousGenMod.logger.info("loop");
-				//1 for (int i = 0; i < yLength; ++i) { // 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16
-				//1
-				//1 	double result = 0;
-				//1 	double var27 = ((double)0 - var22) * 12.0 / valueA; // in general negative numbers.
-				//1 	final double flatness = 4.0f;
-				//1
-				//1 	//SeriousGenMod.logger.info("value: " + var27);
-				//1
-				//1 	// It means higher low grounds.
-				//1 	//  high grounds stay unaffected.
-				//1 	//  everything that would generate below somewhere around ~[8.0 - -64.0]
-				//1 	//  will be raised.
-				//1 	if (var27 < 0.0) var27 *= flatness;
-				//1
-				//1 	// Those add the 3rd noise effect.
-				//1 	//  all the grumpiness, gigantic and smaller hills, depths.
-				//1 	double valueC = (this.ccc[mainIndex] / 10.0 + 1.0) / 2.0; // in range of ~[-10.00 - 10.00]
-				//1 	double min = this.ddd[mainIndex] / 512.0; // in range of ~[-64.00 - 64.00]
-				//1 	double max = this.eee[mainIndex] / 512.0; // in range of ~[-64.00 - 64.00]
-				//1
-				//1 	//SeriousGenMod.logger.info("min: " + min + ", max: " + max + ", value: " + valueC);
-				//1
-				//1 	if (valueC < 0.0) result = min;
-				//1 	else if (valueC > 1.0) result = max;
-				//1 	else result = min + (max - min) * valueC;
-				//1
-				//1 	result -= var27;
-				//1
-				//1 	// No idea, but works without.
-				//1 	//if (i > yLength - 4) {
-				//1 	//	double var45 = (double)((float)(i - (yLength - 4)) / 3.0F);
-				//1 	//	result = result * (1.0 - var45) + -10.0 * var45;
-				//1 	//}
-				//1
-				//1 	//if ((double)i < 0.0) {
-				//1 	//	SeriousGenMod.logger.info("what-here");
-				//1 	//	double var45 = (0.0 - (double)i) / 4.0;
-				//1 	//	if (var45 < 0.0) var45 = 0.0;
-				//1 	//	if (var45 > 1.0) var45 = 1.0;
-				//1 	//	result = result * (1.0 - var45) + -10.0 * var45;
-				//1 	//}
-				//1
-				//1 	this.heightMap[mainIndex] = result;
-				//1 	++mainIndex;
-				//1 }
+				for (int i = 0; i < yLength; ++i) { // 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16
+
+				 	double result = 0;
+				 	double var27 = ((double)i - var22) * 12.0 / valueA; // in general negative numbers.
+				 	final double flatness = 4.0f;
+
+				 	//SeriousGenMod.logger.info("value: " + var27);
+
+				 	// It means higher low grounds.
+				 	//  high grounds stay unaffected.
+				 	//  everything that would generate below somewhere around ~[8.0 - -64.0]
+				 	//  will be raised.
+				 	if (var27 < 0.0) var27 *= flatness;
+
+				 	// Those add the 3rd noise effect.
+				 	//  all the grumpiness, gigantic and smaller hills, depths.
+				 	double valueC = (this.ccc[mainIndex] / 10.0 + 1.0) / 2.0; // in range of ~[-10.00 - 10.00]
+				 	double min = this.ddd[mainIndex] / 512.0; // in range of ~[-64.00 - 64.00]
+				 	double max = this.eee[mainIndex] / 512.0; // in range of ~[-64.00 - 64.00]
+
+				 	//SeriousGenMod.logger.info("min: " + min + ", max: " + max + ", value: " + valueC);
+
+				 	if (valueC < 0.0) result = min;
+				 	else if (valueC > 1.0) result = max;
+				 	else result = min + (max - min) * valueC;
+
+				 	result -= var27;
+
+				 	// No idea, but works without.
+				 	//if (i > yLength - 4) {
+				 	//	double var45 = (double)((float)(i - (yLength - 4)) / 3.0F);
+				 	//	result = result * (1.0 - var45) + -10.0 * var45;
+				 	//}
+
+				 	//if ((double)i < 0.0) {
+				 	//	SeriousGenMod.logger.info("what-here");
+				 	//	double var45 = (0.0 - (double)i) / 4.0;
+				 	//	if (var45 < 0.0) var45 = 0.0;
+				 	//	if (var45 > 1.0) var45 = 1.0;
+				 	//	result = result * (1.0 - var45) + -10.0 * var45;
+				 	//}
+
+				 	this.heightMap[mainIndex] = result;
+				 	++mainIndex;
+				}
 				++index;
 			}
 		}
+	}
+
+	public void replaceBlocks(int chunkX, int chunkZ, ChunkPrimer chunk) {
+
+		//Block currentBlock;
+		//byte baseLevel = 64;
+		double var5 = 0.03125;
+
+		//int var12 = -1;
+
+		//Block topBlock = Blocks.GRASS;
+		//Block midBlock = Blocks.DIRT;
+
+		//boolean water = false;
+		//boolean top = true;
+
+		Arrays.fill(this.stoneNoise, 0.0);
+		Arrays.fill(this.gravelNoise, 0.0);
+		Arrays.fill(this.sandNoise, 0.0);
+
+		surfaceNoise.generateNoiseOctavesXYZ        (this.stoneNoise   , (chunkX * 16), (chunkZ * 16), 0, 16, 16, 1, var5, var5, 1.0);
+		surfaceNoise.generateNoiseOctavesXYZ        (this.gravelNoise  , (chunkZ * 16), (int)109.0134, (chunkX * 16), 16, 1, 16, var5, 1.0, var5);
+		stonePatchesNoise.generateNoiseOctavesXYZ   (this.sandNoise    , (chunkX * 16), (chunkZ * 16), 0, 16, 16, 1, var5 * 2.0, var5 * 2.0, var5 * 2.0);
+
+		// Just comment the following and uncomment what's commented.
+		//  For previous alpha gen.
+		// ->
+
+		Block currentBlock;
+		Block midBlock = Blocks.DIRT;
+		Arrays.fill(this.blockBiomes, STANDARD_BIOME);
+
+		for (int x = 0; x < 16; x++) {
+			perBlock: for (int z = 0; z < 16; z++) {
+
+				// Fill Grass
+				for (int y = 128; y >= 64; --y) {
+					currentBlock = chunk.getBlockState(x, y, z).getBlock();
+
+					if (currentBlock != Blocks.AIR) { // TOP_BLOCK - LAND
+						this.blockBiomes[x + z * 16] = STANDARD_BIOME;
+						chunk.setBlockState(x, y, z, Blocks.GRASS.getDefaultState());
+
+						int midBlockRange = randomNumberGenerator.nextInt(3) + 2;
+
+						for (int i = 0; i != midBlockRange; ++i) {
+							chunk.setBlockState(x, y - i - 1, z, midBlock.getDefaultState());
+						}
+
+						continue perBlock;
+					}
+				}
+
+				// Fill Sand // TOP_BLOCK - NEAR_WATER
+				if (chunk.getBlockState(x, 63, z).getBlock() == Blocks.STONE) {
+					this.blockBiomes[x + z * 16] = BEACH_BIOME;
+					chunk.setBlockState(x, 63, z, Blocks.SAND.getDefaultState());
+					continue perBlock;
+				}
+
+				// Fill Gravel
+				for (int y = 62; y >= 0; --y) {
+					currentBlock = chunk.getBlockState(x, y, z).getBlock();
+
+					if (currentBlock == Blocks.STONE) { // TOP_BLOCK - UNDER_WATER
+						this.blockBiomes[x + z * 16] = OCEAN_BIOME;
+						chunk.setBlockState(x, y, z, Blocks.GRAVEL.getDefaultState());
+						continue perBlock;
+					}
+				}
+
+			}
+		}
+
+		//for (int x = 0; x < 16; ++x) {
+		//	for (int z = 0; z < 16; ++z) {
+		//
+		//		int stone = (int)(this.stoneNoise[x + z * 16] / 3.0 + 3.0 + this.randomNumberGenerator.nextDouble() * 0.25);
+		//		boolean gravel = this.gravelNoise[x + z * 16] + this.randomNumberGenerator.nextDouble() * 0.2 > 3.0;
+		//		boolean sand = this.sandNoise[x + z * 16] + this.randomNumberGenerator.nextDouble() * 0.2 > 0.0;
+		//
+		//		int var12 = -1;
+		//
+		//		topBlock = Blocks.GRASS;
+		//		midBlock = Blocks.DIRT;
+		//		water = false;
+		//		top = true;
+		//
+		//		// First layer of bedrock.
+		//		chunk.setBlockState(x, 0, z, Blocks.BEDROCK.getDefaultState());
+		//
+		//		for (int y = 127; y >= 0; --y) {
+		//
+		//			// Get currentBlock at position.
+		//			currentBlock = chunk.getBlockState(x, y, z).getBlock();
+		//
+		//			if (currentBlock == Blocks.AIR) {
+		//				var12 = -1;
+		//			} else if (currentBlock != Blocks.STONE) {
+		//				if (currentBlock == Blocks.WATER) water = true;
+		//			} else if (var12 == -1) {
+		//				if (stone <= 0) {
+		//					topBlock = Blocks.AIR;
+		//					midBlock = Blocks.STONE;
+		//				} else if (y >= baseLevel - 4 && y <= baseLevel + 1) {
+		//					topBlock = Blocks.GRASS;
+		//					midBlock = Blocks.DIRT;
+		//
+		//					if (gravel) {
+		//						topBlock = Blocks.AIR;
+		//					}
+		//
+		//					if (gravel) {
+		//						midBlock = Blocks.GRAVEL;
+		//					}
+		//
+		//					if (sand) {
+		//						topBlock = Blocks.SAND;
+		//					}
+		//
+		//					if (sand) {
+		//						midBlock = Blocks.SAND;
+		//					}
+		//				}
+		//
+		//				if (y < baseLevel && topBlock == Blocks.AIR) {
+		//					topBlock = Blocks.WATER;
+		//				}
+		//
+		//				if (top) {
+		//					top = false;
+		//					if (midBlock != Blocks.SAND && midBlock != Blocks.GRAVEL) {
+		//
+		//						if (water) {
+		//							if (y >= baseLevel - 4) {
+		//								this.blockBiomes[z << 4 | x] = BEACH_BIOME;
+		//							} else {
+		//								this.blockBiomes[z << 4 | x] = OCEAN_BIOME;
+		//							}
+		//						} else {
+		//							this.blockBiomes[z << 4 | x] = STANDARD_BIOME;
+		//						}
+		//
+		//					} else {
+		//						this.blockBiomes[z << 4 | x] = BEACH_BIOME;
+		//					}
+		//				}
+		//
+		//				var12 = stone;
+		//				if (y >= baseLevel - 1) {
+		//					chunk.setBlockState(x, y, z, topBlock.getDefaultState());
+		//				} else {
+		//					chunk.setBlockState(x, y, z, midBlock.getDefaultState());
+		//				}
+		//			} else if (var12 > 0) {
+		//				--var12;
+		//				chunk.setBlockState(x, y, z, midBlock.getDefaultState());
+		//			}
+		//		}
+		//	}
+		//}
+
 	}
 
 	@Override
