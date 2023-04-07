@@ -53,6 +53,32 @@ public class NoiseGeneratorOctaves {
 		}
 	}
 
+	// I have no idea what's scale A and B are.
+	public void generateNoiseOctavesXZ(
+		double[] outArray,
+		int chunkX, int chunkZ,
+		int numX, int numZ,
+		double scaleX, double scaleZ,
+		double scaleA, double scaleB
+	) {
+		double oscillationA = 1.0, oscillationB = 1.0;;
+
+		for(int i = 0; i < this.numOctaves; ++i) {
+
+			this.generatorCollection[i].populateNoiseArrayXZ(
+				outArray,
+				chunkX, chunkZ,
+				numX, numZ,
+				scaleX * oscillationA,
+				scaleZ * oscillationA,
+				0.55 / oscillationB
+			);
+
+			oscillationA *= scaleA;
+			oscillationB *= scaleB;
+		}
+	}
+
 	public void generateNoiseOctavesXYZ(
 		double[] outArray,
 		int chunkX, int chunkY, int chunkZ,

@@ -24,7 +24,7 @@ public class ChunkProviderGenerate implements IChunkGenerator {
 	private final Random randomNumberGenerator;
 
 	private final byte[] blockBiomes = new byte[16 * 16]; // x-z per chunk biome assignment.
-	private static final byte STANDARD_BIOME = (byte)Biome.getIdForBiome(Biomes.JUNGLE);
+	private static final byte OTHER_BIOME = (byte)Biome.getIdForBiome(Biomes.DESERT);
 	private static final byte BEACH_BIOME = (byte)Biome.getIdForBiome(Biomes.BEACH);
 	private static final byte OCEAN_BIOME = (byte)Biome.getIdForBiome(Biomes.OCEAN);
 
@@ -55,6 +55,8 @@ public class ChunkProviderGenerate implements IChunkGenerator {
 		stoneNoise = new double[16 * 16],
 		sandNoise  = new double[16 * 16];
 
+	private BiomesManager biomesManager;
+
 	public ChunkProviderGenerate(final World world, final long seed) {
 		this.world                      = world;
 		this.randomNumberGenerator      = new Random(seed);
@@ -66,6 +68,7 @@ public class ChunkProviderGenerate implements IChunkGenerator {
 		this.unknownNoise               = new NoiseGeneratorOctaves(this.randomNumberGenerator, 10);
 		this.depthNoise                 = new NoiseGeneratorOctaves(this.randomNumberGenerator, 16);
 		//this.mobSpawnerNoise = new NoiseGeneratorOctaves(this.rand, 8);
+		this.biomesManager = new BiomesManager(world);
 	}
 
 
@@ -77,11 +80,14 @@ public class ChunkProviderGenerate implements IChunkGenerator {
 	@Override
 	public @NotNull Chunk generateChunk(final int x, final int z) {
 
-		// No idea.
+		// No idea. CHUNK_PRIMER IS RESPONSIBLE FOR LAGS AND AN EVENTUAL CRASH AT HIGH SPEED CHUNK GENERATING (OutOfMemory) !!
 		ChunkPrimer chunkPrimer = new ChunkPrimer();
 
+		//if (x >= 0 && x < 10 && z >= 0 && z < 10) {
 		//if (x == 0 && z == 0) {
 			randomNumberGenerator.setSeed(x * 341873128712L + z * 132897987541L);   // No idea... does it do anything ???
+			this.biomesManager.generateChunkBiomeData(this.blockBiomes, x * 16, z * 16, 16, 16);
+
 			generateTerrain(x, z, chunkPrimer);                                     // Generates stone-block noise filled with water up to water-level.
 			replaceBlocks(x, z, chunkPrimer);                                       // Replaces generated stone with other blocks. - biomes !
 		//}
@@ -137,7 +143,7 @@ public class ChunkProviderGenerate implements IChunkGenerator {
 				final int k_x1z0 = ((x4 + 1) * xLength + z4) * yLength;
 				final int k_x1z1 = ((x4 + 1) * xLength + z4 + 1) * yLength;
 
-				for (int y16 = 0; y16 < 16; ++y16) {    // Divide chunk into 32 subChunks in y direction, index as y16
+				for (int y16 = 0; y16 < 16; ++y16) {    // Divide chunk into 16 subChunks in y direction, index as y16
 
 					final double n_x0y0z0 = this.heightMap[k_x0z0 + y16];
 					final double n_x0y0z1 = this.heightMap[k_x0z1 + y16];
@@ -184,6 +190,15 @@ public class ChunkProviderGenerate implements IChunkGenerator {
 								//	SeriousGenMod.logger.info("noiseVal: " + noiseVal);
 								//}
 
+								// DEBUG
+								//if (y == 64) {
+								//	SeriousGenMod.logger.info(
+								//		"x: " + x + "  \ty:" + y + "  \tz: " + z +
+								//		"  \tt: " + this.biomesManager.temperatures[x * 16 + z] +
+								//		"  \th: " + this.biomesManager.temperatures[x * 16 + z]
+								//	);
+								//}
+
 								if (noiseVal > 0.0) {
 									block = Blocks.STONE;
 									chunkPrimer.setBlockState(x, y, z, block.getDefaultState());
@@ -197,6 +212,8 @@ public class ChunkProviderGenerate implements IChunkGenerator {
 								//if (block != null) {
 								//	chunkPrimer.setBlockState(x, y, z, block.getDefaultState());
 								//}
+
+
 
 								++z;
 								noiseVal += noiseStepZ;
@@ -347,7 +364,7 @@ public class ChunkProviderGenerate implements IChunkGenerator {
 		}
 	}
 
-	public void replaceBlocks(int chunkX, int chunkZ, ChunkPrimer chunk) {
+	public void replaceBlocks(int chunkX, int chunkZ, ChunkPrimer chunkPrimer) {
 
 		//Block currentBlock;
 		//byte baseLevel = 64;
@@ -375,23 +392,27 @@ public class ChunkProviderGenerate implements IChunkGenerator {
 
 		Block currentBlock;
 		Block midBlock = Blocks.DIRT;
-		Arrays.fill(this.blockBiomes, STANDARD_BIOME);
 
 		for (int x = 0; x < 16; x++) {
 			perBlock: for (int z = 0; z < 16; z++) {
 
 				// Fill Grass
 				for (int y = 128; y >= 64; --y) {
-					currentBlock = chunk.getBlockState(x, y, z).getBlock();
+					currentBlock = chunkPrimer.getBlockState(x, y, z).getBlock();
 
 					if (currentBlock != Blocks.AIR) { // TOP_BLOCK - LAND
-						this.blockBiomes[x + z * 16] = STANDARD_BIOME;
-						chunk.setBlockState(x, y, z, Blocks.GRASS.getDefaultState());
+						//this.blockBiomes[x + z * 16] = STANDARD_BIOME;
+						//chunkPrimer.setBlockState(x, y, z, Blocks.GRASS.getDefaultState());
+
+						if (this.blockBiomes[x + z * 16] == OTHER_BIOME)
+							chunkPrimer.setBlockState(x, y, z, Blocks.MOSSY_COBBLESTONE.getDefaultState());
+						else
+							chunkPrimer.setBlockState(x, y, z, Blocks.GRASS.getDefaultState());
 
 						int midBlockRange = randomNumberGenerator.nextInt(3) + 2;
 
 						for (int i = 0; i != midBlockRange; ++i) {
-							chunk.setBlockState(x, y - i - 1, z, midBlock.getDefaultState());
+							chunkPrimer.setBlockState(x, y - i - 1, z, midBlock.getDefaultState());
 						}
 
 						continue perBlock;
@@ -399,19 +420,19 @@ public class ChunkProviderGenerate implements IChunkGenerator {
 				}
 
 				// Fill Sand // TOP_BLOCK - NEAR_WATER
-				if (chunk.getBlockState(x, 63, z).getBlock() == Blocks.STONE) {
+				if (chunkPrimer.getBlockState(x, 63, z).getBlock() == Blocks.STONE) {
 					this.blockBiomes[x + z * 16] = BEACH_BIOME;
-					chunk.setBlockState(x, 63, z, Blocks.SAND.getDefaultState());
+					chunkPrimer.setBlockState(x, 63, z, Blocks.SAND.getDefaultState());
 					continue perBlock;
 				}
 
 				// Fill Gravel
 				for (int y = 62; y >= 0; --y) {
-					currentBlock = chunk.getBlockState(x, y, z).getBlock();
+					currentBlock = chunkPrimer.getBlockState(x, y, z).getBlock();
 
 					if (currentBlock == Blocks.STONE) { // TOP_BLOCK - UNDER_WATER
 						this.blockBiomes[x + z * 16] = OCEAN_BIOME;
-						chunk.setBlockState(x, y, z, Blocks.GRAVEL.getDefaultState());
+						chunkPrimer.setBlockState(x, y, z, Blocks.GRAVEL.getDefaultState());
 						continue perBlock;
 					}
 				}

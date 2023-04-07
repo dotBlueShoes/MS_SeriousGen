@@ -5,8 +5,8 @@ import net.minecraft.util.math.ChunkPos;
 import net.minecraft.world.World;
 
 public class WorldChunkManager {
-   private NoiseGeneratorOctaves2 field_4194_e;
-   private NoiseGeneratorOctaves2 field_4193_f;
+   private NoiseGeneratorOctaves2 temperatureNoise;
+   private NoiseGeneratorOctaves2 humidityNoise;
    private NoiseGeneratorOctaves2 field_4192_g;
    public double[] temperature;
    public double[] humidity;
@@ -17,8 +17,8 @@ public class WorldChunkManager {
    }
 
    public WorldChunkManager(World world) {
-      this.field_4194_e = new NoiseGeneratorOctaves2(new Random(world.getSeed() * 9871L), 4);
-      this.field_4193_f = new NoiseGeneratorOctaves2(new Random(world.getSeed() * 39811L), 4);
+      this.temperatureNoise = new NoiseGeneratorOctaves2(new Random(world.getSeed() * 9871L), 4);
+      this.humidityNoise = new NoiseGeneratorOctaves2(new Random(world.getSeed() * 39811L), 4);
       this.field_4192_g = new NoiseGeneratorOctaves2(new Random(world.getSeed() * 543321L), 2);
    }
 
@@ -31,7 +31,7 @@ public class WorldChunkManager {
    }
 
    public double getTemperature(int var1, int var2) {
-      this.temperature = this.field_4194_e.func_4112_a(this.temperature, (double)var1, (double)var2, 1, 1, 0.02500000037252903, 0.02500000037252903, 0.5);
+      this.temperature = this.temperatureNoise.func_4112_a(this.temperature, (double)var1, (double)var2, 1, 1, 0.02500000037252903, 0.02500000037252903, 0.5);
       return this.temperature[0];
    }
 
@@ -45,7 +45,7 @@ public class WorldChunkManager {
          var1 = new double[var4 * var5];
       }
 
-      var1 = this.field_4194_e.func_4112_a(var1, (double)var2, (double)var3, var4, var5, 0.02500000037252903, 0.02500000037252903, 0.25);
+      var1 = this.temperatureNoise.func_4112_a(var1, (double)var2, (double)var3, var4, var5, 0.02500000037252903, 0.02500000037252903, 0.25);
       this.field_4196_c = this.field_4192_g.func_4112_a(this.field_4196_c, (double)var2, (double)var3, var4, var5, 0.25, 0.25, 0.5882352941176471);
       int var6 = 0;
 
@@ -73,12 +73,13 @@ public class WorldChunkManager {
    }
 
    public BiomeGenBase[] loadBlockGeneratorData(BiomeGenBase[] var1, int var2, int var3, int var4, int var5) {
+
       if (var1 == null || var1.length < var4 * var5) {
          var1 = new BiomeGenBase[var4 * var5];
       }
 
-      this.temperature = this.field_4194_e.func_4112_a(this.temperature, (double)var2, (double)var3, var4, var4, 0.02500000037252903, 0.02500000037252903, 0.25);
-      this.humidity = this.field_4193_f.func_4112_a(this.humidity, (double)var2, (double)var3, var4, var4, 0.05000000074505806, 0.05000000074505806, 0.3333333333333333);
+      this.temperature = this.temperatureNoise.func_4112_a(this.temperature, (double)var2, (double)var3, var4, var4, 0.02500000037252903, 0.02500000037252903, 0.25);
+      this.humidity = this.humidityNoise.func_4112_a(this.humidity, (double)var2, (double)var3, var4, var4, 0.05000000074505806, 0.05000000074505806, 0.3333333333333333);
       this.field_4196_c = this.field_4192_g.func_4112_a(this.field_4196_c, (double)var2, (double)var3, var4, var4, 0.25, 0.25, 0.5882352941176471);
       int var6 = 0;
 
@@ -92,6 +93,7 @@ public class WorldChunkManager {
             var13 = 1.0 - var11;
             double var17 = (this.humidity[var6] * 0.15 + 0.5) * var13 + var9 * var11;
             var15 = 1.0 - (1.0 - var15) * (1.0 - var15);
+
             if (var15 < 0.0) {
                var15 = 0.0;
             }
